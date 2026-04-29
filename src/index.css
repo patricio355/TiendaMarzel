@@ -1,0 +1,37 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap');
+
+:root {
+	color-scheme: light;
+	font-family: 'Montserrat', 'Helvetica Neue', Arial, sans-serif;
+	background: #f2ebe0;
+}
+
+html {
+	scroll-behavior: smooth;
+}
+
+body {
+	margin: 0;
+	min-width: 320px;
+	background:
+		radial-gradient(circle at top, rgba(255, 252, 245, 0.92), rgba(242, 235, 224, 0.92)),
+		linear-gradient(180deg, #fbf8f3 0%, #f1e8da 100%);
+	color: #1c1917;
+}
+
+* {
+	box-sizing: border-box;
+}
+
+button,
+input,
+select,
+textarea {
+	font: inherit;
+}
+
+::selection {
+	background: #1c1917;
+	color: #fffdf7;
+}
