@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import Navbar from '../components/Navbar';
+import { Navbar } from '../components/Navbar';
 import {
   addCartItem,
   clearCart,
@@ -671,7 +671,7 @@ function Home() {
       <Navbar cartCount={cartCount} user={authUser} onLogout={handleLogout} />
 
       <main>
-        <section className="mx-auto grid max-w-7xl gap-10 px-4 py-10 sm:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:px-8 lg:py-14">
+          <section className="mx-auto grid max-w-[1600px] gap-10 px-4 py-10 sm:px-6 lg:grid-cols-[1.12fr_0.88fr] lg:px-10 lg:py-14">
           <div className="space-y-8">
             <div className="inline-flex items-center gap-3 rounded-full border border-stone-300 bg-white/70 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.35em] text-stone-600 shadow-sm backdrop-blur">
               Backend conectado
@@ -792,17 +792,17 @@ function Home() {
           <div className="mt-8 grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
             <div>
               {catalogLoading ? (
-                <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+                <div className="grid gap-5 grid-cols-2 lg:grid-cols-4">
                   {Array.from({ length: 6 }).map((_, index) => (
                     <div key={index} className="h-[420px] animate-pulse rounded-[1.75rem] bg-white/80" />
                   ))}
                 </div>
               ) : (
-                <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+                <div className="grid gap-5 grid-cols-2 lg:grid-cols-4">
                   {filteredProducts.map((product) => (
                     <article key={product.id} className="group overflow-hidden rounded-[1.75rem] border border-white/70 bg-white shadow-[0_25px_60px_rgba(72,61,45,0.08)] transition hover:-translate-y-1 hover:shadow-[0_30px_70px_rgba(72,61,45,0.14)]">
                       <button type="button" onClick={() => { setSelectedProduct(product); setSelectedVariantId(product.variants[0]?.id ?? null); loadDetail(product.id); }} className="block w-full text-left">
-                        <div className="relative aspect-[4/5] overflow-hidden bg-stone-100">
+                        <div className="relative aspect-[2/3] overflow-hidden bg-stone-100">
                           <img
                             src={product.imagenUrl}
                             alt={product.nombre}
@@ -825,17 +825,17 @@ function Home() {
                           </div>
                         </div>
                       </button>
-                      <div className="space-y-4 p-5">
+                      <div className="space-y-4 p-4 lg:p-5">
                         <div>
-                          <h4 className="font-serif text-2xl text-stone-950">{product.nombre}</h4>
-                          <p className="mt-2 line-clamp-2 text-sm leading-6 text-stone-600">{product.descripcion}</p>
+                          <h4 className="font-serif text-xl text-stone-950 lg:text-2xl">{product.nombre}</h4>
+                          <p className="mt-2 line-clamp-2 text-xs leading-6 text-stone-600 lg:text-sm">{product.descripcion}</p>
                         </div>
                         <div className="flex items-center justify-between gap-3">
-                          <p className="text-lg font-semibold text-stone-950">{currency(product.precio)}</p>
+                          <p className="text-sm font-semibold text-stone-950 lg:text-lg">{currency(product.precio)}</p>
                           <button
                             type="button"
                             onClick={() => handleAddToCart(product, product.variants[0]?.id ?? product.id)}
-                            className="rounded-full border border-stone-200 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.3em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
+                            className="rounded-full border border-stone-200 px-3 py-2 text-[9px] font-bold uppercase tracking-[0.3em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950 lg:px-4 lg:text-[10px]"
                           >
                             Añadir
                           </button>
@@ -859,7 +859,7 @@ function Home() {
                 ) : selectedProduct ? (
                   <div className="mt-5 space-y-5">
                     <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/5">
-                      <img src={selectedProduct.imagenUrl} alt={selectedProduct.nombre} className="h-72 w-full object-cover" />
+                      <img src={selectedProduct.imagenUrl} alt={selectedProduct.nombre} className="h-72 w-full object-contain" />
                     </div>
                     <div>
                       <h4 className="font-serif text-3xl text-white">{selectedProduct.nombre}</h4>

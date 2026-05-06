@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
-import Navbar from '../components/Navbar';
+import { Navbar } from '../components/Navbar';
 import { useCart } from '../context/CartContext';
 import { getProduct, listProducts } from '../lib/api';
 import { currency, normalizeProduct, toArray } from '../lib/shop';
+import { getLargeImage, getThumbnail } from '../lib/cloudinary';
 
 function ProductDetailPage() {
   const { id } = useParams();
@@ -15,8 +16,40 @@ function ProductDetailPage() {
   const [product, setProduct] = useState(stateProduct);
   const [relatedProducts, setRelatedProducts] = useState([]);
   const [selectedImage, setSelectedImage] = useState(stateProduct?.imagenUrl ?? '');
-  const [selectedSize, setSelectedSize] = useState('01');
+  const [selectedTalle, setSelectedTalle] = useState('');
+  const [selectedColor, setSelectedColor] = useState('');
+  const [selectedVariantId, setSelectedVariantId] = useState(stateProduct?.variants?.[0]?.id ?? null);
   const [loading, setLoading] = useState(!stateProduct);
+
+  const availableVariants = useMemo(
+    () => (product?.variants ?? []).filter((variant) => Number(variant?.stock ?? 0) > 0),
+    [product?.variants],
+  );
+
+  const availableTalles = useMemo(
+    () => [...new Set(availableVariants.map((variant) => variant.talle).filter(Boolean))],
+    [availableVariants],
+  );
+
+  const availableColors = useMemo(() => {
+    const byTalle = selectedTalle
+      ? availableVariants.filter((variant) => variant.talle === selectedTalle)
+      : availableVariants;
+
+    return [...new Set(byTalle.map((variant) => variant.color).filter(Boolean))];
+  }, [availableVariants, selectedTalle]);
+
+  const matchedVariant = useMemo(() => {
+    const filteredByTalle = selectedTalle
+      ? availableVariants.filter((variant) => variant.talle === selectedTalle)
+      : availableVariants;
+
+    const exactMatch = filteredByTalle.find(
+      (variant) => variant.color === selectedColor,
+    );
+
+    return exactMatch ?? filteredByTalle[0] ?? availableVariants[0] ?? null;
+  }, [availableVariants, selectedColor, selectedTalle]);
 
   const gallery = useMemo(() => {
     const images = [
@@ -31,6 +64,37 @@ function ProductDetailPage() {
     return [...new Set(images)].slice(0, 5);
   }, [product?.images, product?.imagenUrl, selectedImage]);
 
+  useEffect(() => {
+    if (!availableVariants.length) {
+      setSelectedTalle('');
+      setSelectedColor('');
+      setSelectedVariantId(null);
+      return;
+    }
+
+    const nextTalle = availableVariants.find((variant) => variant.talle === selectedTalle)?.talle
+      ?? availableVariants[0]?.talle
+      ?? '';
+
+    const colorsForTalle = availableVariants
+      .filter((variant) => variant.talle === nextTalle)
+      .map((variant) => variant.color)
+      .filter(Boolean);
+
+    const nextColor = colorsForTalle.includes(selectedColor)
+      ? selectedColor
+      : colorsForTalle[0]
+      ?? '';
+
+    const nextVariant = availableVariants.find(
+      (variant) => variant.talle === nextTalle && variant.color === nextColor,
+    ) ?? availableVariants.find((variant) => variant.talle === nextTalle) ?? availableVariants[0];
+
+    setSelectedTalle(nextTalle);
+    setSelectedColor(nextColor);
+    setSelectedVariantId(nextVariant?.id ?? null);
+  }, [availableVariants, selectedColor, selectedTalle, product?.id]);
+
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     let active = true;
@@ -38,6 +102,9 @@ function ProductDetailPage() {
     setLoading(!stateProduct);
     setProduct(stateProduct);
     setSelectedImage(stateProduct?.imagenUrl ?? '');
+    setSelectedTalle('');
+    setSelectedColor('');
+    setSelectedVariantId(stateProduct?.variants?.[0]?.id ?? null);
 
     void (async () => {
       try {
@@ -56,6 +123,8 @@ function ProductDetailPage() {
 
         setProduct(resolvedProduct);
         setSelectedImage(resolvedProduct?.imagenUrl ?? '');
+        setSelectedTalle('');
+        setSelectedColor('');
 
         const normalizedProducts = toArray(listResponse).map(normalizeProduct).filter(Boolean);
         setRelatedProducts(normalizedProducts.filter((item) => String(item.id) !== String(resolvedProduct?.id)).slice(0, 4));
@@ -67,6 +136,8 @@ function ProductDetailPage() {
         const fallbackProduct = stateProduct;
         setProduct(fallbackProduct);
         setSelectedImage(fallbackProduct?.imagenUrl ?? '');
+        setSelectedTalle('');
+        setSelectedColor('');
 
         try {
           const listResponse = await listProducts();
@@ -119,9 +190,9 @@ function ProductDetailPage() {
         <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
           <div className="overflow-hidden bg-white">
             <img
-              src={selectedImage || product.imagenUrl}
+              src={getLargeImage(selectedImage || product.imagenUrl)}
               alt={product.nombre}
-              className="h-full w-full object-cover"
+              className="h-full w-full object-contain"
             />
           </div>
 
@@ -134,7 +205,7 @@ function ProductDetailPage() {
                   onClick={() => setSelectedImage(image)}
                   className={`h-28 w-24 shrink-0 overflow-hidden border ${selectedImage === image ? 'border-black' : 'border-stone-300'}`}
                 >
-                  <img src={image} alt={`Vista ${index + 1}`} className="h-full w-full object-cover" />
+                  <img src={getThumbnail(image)} alt={`Vista ${index + 1}`} className="h-full w-full object-cover" />
                 </button>
               ))}
             </div>
@@ -159,30 +230,80 @@ function ProductDetailPage() {
               </div>
 
               <div className="mt-5">
-                <p className="text-sm uppercase tracking-[0.2em] text-stone-700">Color: Crudo</p>
-                <div className="mt-2 h-5 w-5 rounded-full border border-stone-400 bg-stone-200" />
-              </div>
-
-              <div className="mt-6">
                 <p className="text-sm uppercase tracking-[0.2em] text-stone-700">Talle</p>
-                <div className="mt-3 flex gap-2">
-                  {['01', '02', '03'].map((size) => (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {availableTalles.map((talle) => (
                     <button
-                      key={size}
+                      key={talle}
                       type="button"
-                      onClick={() => setSelectedSize(size)}
-                      className={`rounded-full border px-4 py-2 text-sm ${selectedSize === size ? 'border-black bg-black text-white' : 'border-stone-300 bg-white text-stone-700'}`}
+                      onClick={() => {
+                        setSelectedTalle(talle);
+                        const firstColor = availableVariants.find((variant) => variant.talle === talle && Number(variant.stock ?? 0) > 0)?.color ?? '';
+                        setSelectedColor(firstColor);
+                        const nextVariant = availableVariants.find((variant) => variant.talle === talle && variant.color === firstColor) ?? null;
+                        setSelectedVariantId(nextVariant?.id ?? null);
+                      }}
+                      className={`min-w-12 rounded-full border px-4 py-2 text-sm transition ${selectedTalle === talle ? 'border-black bg-black text-white' : 'border-stone-300 bg-white text-stone-700'}`}
                     >
-                      {size}
+                      {talle}
                     </button>
                   ))}
                 </div>
               </div>
 
+              {availableColors.length > 0 && (
+                <div className="mt-6">
+                  <p className="text-sm uppercase tracking-[0.2em] text-stone-700">Color</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {availableColors.map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        onClick={() => {
+                          setSelectedColor(color);
+                          const nextVariant = availableVariants.find(
+                            (variant) => variant.talle === selectedTalle && variant.color === color,
+                          ) ?? availableVariants.find((variant) => variant.color === color) ?? null;
+                          setSelectedVariantId(nextVariant?.id ?? null);
+                        }}
+                        className={`rounded-full border px-4 py-2 text-sm uppercase transition ${selectedColor === color ? 'border-black bg-black text-white' : 'border-stone-300 bg-white text-stone-700'}`}
+                      >
+                        {color}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {product.variants && product.variants.length > 0 && (
+                <div className="mt-6 hidden">
+                  <p className="text-sm uppercase tracking-[0.2em] text-stone-700">Variantes</p>
+                  <div className="mt-3 flex gap-2 flex-wrap">
+                    {product.variants.map((variant) => (
+                      <button
+                        key={variant.id}
+                        type="button"
+                        onClick={() => setSelectedVariantId(variant.id)}
+                        className={`rounded-full border px-4 py-2 text-sm ${selectedVariantId === variant.id ? 'border-black bg-black text-white' : 'border-stone-300 bg-white text-stone-700'}`}
+                      >
+                        {variant.nombre}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <button
                 type="button"
-                onClick={() => addItem(product.variants?.[0]?.id || product.id, 1)}
-                className="mt-7 w-full rounded-full bg-black px-6 py-4 text-sm font-medium uppercase tracking-[0.24em] text-white"
+                onClick={() => {
+                  const variantId = matchedVariant?.id ?? selectedVariantId ?? product.variants?.[0]?.id;
+                  if (!variantId) {
+                    alert('Selecciona una variante antes de agregar al carrito.');
+                    return;
+                  }
+                  addItem(variantId, 1);
+                }}
+                className="mt-7 w-full rounded-full bg-[#2a5a3a] px-6 py-4 text-sm font-medium uppercase tracking-[0.24em] text-white hover:bg-[#1f4a2a]"
               >
                 Agregar a la bolsa
               </button>

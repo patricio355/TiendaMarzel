@@ -66,6 +66,9 @@ export function normalizeVariant(variant, index) {
     id: variant.id ?? variant.varianteId ?? variant.variantId ?? `${index}`,
     nombre: variant.nombre ?? variant.name ?? variant.talle ?? variant.color ?? `Variante ${index + 1}`,
     precio: Number(variant.precio ?? variant.price ?? 0),
+    talle: variant.talle ?? null,
+    color: variant.color ?? null,
+    stock: variant.stock ?? 0,
   };
 }
 
@@ -74,18 +77,23 @@ export function normalizeProduct(product) {
     return null;
   }
 
+  // Si la respuesta tiene la estructura de ProductoDetalleDTO (con propiedad 'producto')
+  // extraer los datos correctamente
+  const productoData = product.producto ?? product;
+  const variantes_list = product.variantes ?? product.variants ?? [];
   const images = toArray(product.imagenes ?? product.images ?? product.galeria);
-  const variants = toArray(product.variantes ?? product.variants)
+
+  const variants = toArray(variantes_list)
     .map((variant, index) => normalizeVariant(variant, index))
     .filter(Boolean);
 
   return {
-    id: product.id ?? product.productoId ?? product.productId,
-    nombre: product.nombre ?? product.name ?? 'Producto',
-    descripcion: product.descripcion ?? product.description ?? '',
-    precio: Number(product.precio ?? product.price ?? 0),
-    categoria: product.categoria ?? product.category ?? 'General',
-    imagenUrl: product.imagenUrl ?? product.imagen ?? product.image ?? images[0] ?? FALLBACK_PRODUCTS[0].imagenUrl,
+    id: productoData.id ?? product.id ?? product.productoId ?? product.productId,
+    nombre: productoData.nombre ?? product.nombre ?? product.name ?? 'Producto',
+    descripcion: productoData.descripcion ?? product.descripcion ?? product.description ?? '',
+    precio: Number(productoData.precio ?? product.precio ?? product.price ?? 0),
+    categoria: productoData.categoria ?? product.categoria ?? product.category ?? 'General',
+    imagenUrl: productoData.imagenUrl ?? product.imagenUrl ?? product.imagen ?? product.image ?? images[0] ?? FALLBACK_PRODUCTS[0].imagenUrl,
     images,
     variants,
     raw: product,

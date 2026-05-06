@@ -40,8 +40,11 @@ function normalizeCart(cart) {
       id: item.id ?? item.carritoItemId ?? item.itemId,
       cantidad: Number(item.cantidad ?? item.quantity ?? 0),
       nombre: item.nombre ?? item.productoNombre ?? item.productName ?? item.varianteNombre ?? 'Producto',
-      precio: Number(item.precio ?? item.price ?? item.subtotal ?? 0),
+      precio: Number(item.precio ?? item.precioUnitario ?? item.price ?? item.subtotal ?? 0),
       varianteId: item.varianteId ?? item.variantId ?? null,
+      talle: item.talle ?? null,
+      color: item.color ?? null,
+      imagenUrl: item.imagenUrl ?? item.imagen ?? item.image ?? null,
       raw: item,
     })),
   };

@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Cormorant+Garamond:wght@400;500;600;700&display=swap');
 
 :root {
 	color-scheme: light;
@@ -34,4 +34,24 @@ textarea {
 ::selection {
 	background: #1c1917;
 	color: #fffdf7;
+}
+
+@keyframes marquee-left {
+	0% {
+		transform: translateX(0);
+	}
+
+	100% {
+		transform: translateX(-50%);
+	}
+}
+
+.marquee-track {
+	animation: marquee-left 30s linear infinite;
+	will-change: transform;
+	width: max-content;
+}
+
+.marquee-group {
+	flex-shrink: 0;
 }
