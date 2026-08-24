@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
+import { parsePriceInput, formatCurrencyForInput } from '../lib/shop';
 import { Navbar } from '../components/Navbar';
+import ConfirmDialog from '../components/ConfirmDialog';
+import ProductHoverImage from '../components/ProductHoverImage';
 import {
   addCartItem,
   clearCart,
@@ -192,8 +195,10 @@ function Home() {
   const [registerForm, setRegisterForm] = useState({ username: '', email: '', password: '', rol: 'USER' });
   const [orderEmail, setOrderEmail] = useState('');
   const [orderHistory, setOrderHistory] = useState([]);
-  const [adminForm, setAdminForm] = useState({ id: '', nombre: '', descripcion: '', precio: '', categoria: '', imagenUrl: '' });
+  const [adminForm, setAdminForm] = useState({ id: '', nombre: '', descripcion: '', precio: '', categoria: '', imagenUrl: '', imagenSecundaria: '' });
   const [submittingProduct, setSubmittingProduct] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [viewMode, setViewMode] = useState('store');
 
@@ -252,6 +257,7 @@ function Home() {
         precio: normalized.precio ?? '',
         categoria: normalized.categoria ?? '',
         imagenUrl: normalized.imagenUrl ?? '',
+        imagenSecundaria: normalized.imagenSecundaria ?? '',
       });
     } catch (error) {
       setMessage(error.message || 'No se pudo cargar el detalle del producto.');
@@ -339,6 +345,7 @@ function Home() {
       precio: Number(adminForm.precio),
       categoria: adminForm.categoria,
       imagenUrl: adminForm.imagenUrl,
+      imagenSecundaria: adminForm.imagenSecundaria,
     };
 
     try {
@@ -363,6 +370,8 @@ function Home() {
       return;
     }
 
+    setDeleteLoading(true);
+
     try {
       await deleteProduct(productId, authToken);
       setMessage('Producto eliminado.');
@@ -370,9 +379,13 @@ function Home() {
       if (selectedProduct?.id === productId) {
         setSelectedProduct(null);
         setSelectedVariantId(null);
+        setAdminForm({ id: '', nombre: '', descripcion: '', precio: '', categoria: '', imagenUrl: '', imagenSecundaria: '' });
       }
     } catch (error) {
       setMessage(error.message || 'No se pudo eliminar el producto.');
+    } finally {
+      setDeleteLoading(false);
+      setDeleteTarget(null);
     }
   }
 
@@ -613,13 +626,29 @@ function Home() {
                         imagenUrl: product.imagenUrl ?? '',
                       });
                     }}
-                    className="overflow-hidden rounded-[1.5rem] border border-stone-200 bg-white text-left transition hover:-translate-y-1 hover:shadow-[0_20px_50px_rgba(72,61,45,0.12)]"
+                    className="group overflow-hidden rounded-[1.5rem] border border-stone-200 bg-white text-left transition hover:-translate-y-1 hover:shadow-[0_20px_50px_rgba(72,61,45,0.12)]"
                   >
-                    <img src={product.imagenUrl} alt={product.nombre} className="h-44 w-full object-cover" />
+                    <ProductHoverImage
+                      primarySrc={product.imagenUrl}
+                      secondarySrc={product.imagenSecundaria}
+                      alt={product.nombre}
+                      className="h-44 w-full bg-stone-100"
+                    />
                     <div className="p-4">
                       <p className="text-[10px] uppercase tracking-[0.3em] text-stone-500">{product.categoria}</p>
                       <p className="mt-2 font-serif text-xl text-stone-950">{product.nombre}</p>
                       <p className="mt-2 text-sm text-stone-600">{currency(product.precio)}</p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {product.variants?.length > 0 ? (
+                          product.variants.slice(0, 3).map((variant) => (
+                            <span key={variant.id} className="rounded-full border border-stone-200 bg-stone-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-stone-700">
+                              {(variant.talle || 'Sin talle') + ' · ' + (variant.color || 'Sin color')}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-[10px] uppercase tracking-[0.22em] text-stone-400">Sin variantes</span>
+                        )}
+                      </div>
                     </div>
                   </button>
                 ))}
@@ -634,13 +663,24 @@ function Home() {
                   <input value={adminForm.id} onChange={(event) => setAdminForm((current) => ({ ...current, id: event.target.value }))} placeholder="ID (vacío para crear)" className="rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none placeholder:text-stone-400" />
                   <input value={adminForm.nombre} onChange={(event) => setAdminForm((current) => ({ ...current, nombre: event.target.value }))} placeholder="Nombre" className="rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none placeholder:text-stone-400" />
                   <input value={adminForm.categoria} onChange={(event) => setAdminForm((current) => ({ ...current, categoria: event.target.value }))} placeholder="Categoría" className="rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none placeholder:text-stone-400" />
-                  <input value={adminForm.precio} onChange={(event) => setAdminForm((current) => ({ ...current, precio: event.target.value }))} placeholder="Precio" className="rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none placeholder:text-stone-400" />
-                  <input value={adminForm.imagenUrl} onChange={(event) => setAdminForm((current) => ({ ...current, imagenUrl: event.target.value }))} placeholder="Imagen URL" className="rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none placeholder:text-stone-400" />
+                  <input
+                    value={typeof adminForm.precio === 'number' && !Number.isNaN(adminForm.precio) ? formatCurrencyForInput(adminForm.precio) : (adminForm.precio ?? '')}
+                    onChange={(event) => {
+                      const raw = event.target.value;
+                      const parsed = parsePriceInput(raw);
+                      setAdminForm((current) => ({ ...current, precio: Number.isNaN(parsed) ? raw : parsed }));
+                    }}
+                    placeholder="Precio"
+                    type="text"
+                    className="rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none placeholder:text-stone-400"
+                  />
+                  <input value={adminForm.imagenUrl} onChange={(event) => setAdminForm((current) => ({ ...current, imagenUrl: event.target.value }))} placeholder="Imagen URL" required className="rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none placeholder:text-stone-400" />
+                  <input value={adminForm.imagenSecundaria} onChange={(event) => setAdminForm((current) => ({ ...current, imagenSecundaria: event.target.value }))} placeholder="Imagen secundaria URL" required className="rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none placeholder:text-stone-400" />
                   <textarea value={adminForm.descripcion} onChange={(event) => setAdminForm((current) => ({ ...current, descripcion: event.target.value }))} placeholder="Descripción" rows="4" className="rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none placeholder:text-stone-400" />
                   <div className="flex flex-wrap gap-3">
                     <button type="submit" disabled={submittingProduct} className="rounded-full bg-stone-950 px-4 py-3 text-xs font-bold uppercase tracking-[0.3em] text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-60">{submittingProduct ? 'Guardando...' : 'Guardar'}</button>
                     <button type="button" onClick={() => selectedProduct && handleDeleteProduct(selectedProduct.id)} className="rounded-full border border-stone-300 px-4 py-3 text-xs font-bold uppercase tracking-[0.3em] text-stone-700 transition hover:border-red-500 hover:text-red-700">Eliminar</button>
-                    <button type="button" onClick={() => setAdminForm({ id: '', nombre: '', descripcion: '', precio: '', categoria: '', imagenUrl: '' })} className="rounded-full border border-stone-300 px-4 py-3 text-xs font-bold uppercase tracking-[0.3em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950">Limpiar</button>
+                    <button type="button" onClick={() => setAdminForm({ id: '', nombre: '', descripcion: '', precio: '', categoria: '', imagenUrl: '', imagenSecundaria: '' })} className="rounded-full border border-stone-300 px-4 py-3 text-xs font-bold uppercase tracking-[0.3em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950">Limpiar</button>
                   </div>
                 </form>
               </div>
@@ -667,7 +707,8 @@ function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#fffaf2_0%,_#f2ebe0_45%,_#e7ded0_100%)] text-stone-900">
+    <>
+      <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#fffaf2_0%,_#f2ebe0_45%,_#e7ded0_100%)] text-stone-900">
       <Navbar cartCount={cartCount} user={authUser} onLogout={handleLogout} />
 
       <main>
@@ -905,10 +946,18 @@ function Home() {
                           precio: selectedProduct.precio ?? '',
                           categoria: selectedProduct.categoria ?? '',
                           imagenUrl: selectedProduct.imagenUrl ?? '',
+                          imagenSecundaria: selectedProduct.imagenSecundaria ?? '',
                         })}
-                        className="rounded-full border border-white/20 px-4 py-3 text-xs font-bold uppercase tracking-[0.3em] text-white transition hover:border-white hover:bg-white/5"
+                        className="rounded-full border border-white/30 bg-white/10 px-5 py-3.5 text-xs font-bold uppercase tracking-[0.28em] text-white transition hover:border-white hover:bg-white/15"
                       >
-                        Editar
+                        Editar producto
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeleteTarget(selectedProduct)}
+                        className="rounded-full bg-red-600 px-5 py-3.5 text-xs font-bold uppercase tracking-[0.28em] text-white transition hover:bg-red-700"
+                      >
+                        Borrar producto
                       </button>
                     </div>
                   </div>
@@ -1124,16 +1173,27 @@ function Home() {
                 placeholder="Categoría"
                 className="rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none placeholder:text-stone-400"
               />
-              <input
-                value={adminForm.precio}
-                onChange={(event) => setAdminForm((current) => ({ ...current, precio: event.target.value }))}
+                  <input
+                value={typeof adminForm.precio === 'number' && !Number.isNaN(adminForm.precio) ? formatCurrencyForInput(adminForm.precio) : (adminForm.precio ?? '')}
+                onChange={(event) => {
+                  const raw = event.target.value;
+                  const parsed = parsePriceInput(raw);
+                  setAdminForm((current) => ({ ...current, precio: Number.isNaN(parsed) ? raw : parsed }));
+                }}
                 placeholder="Precio"
+                type="text"
                 className="rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none placeholder:text-stone-400"
               />
               <input
                 value={adminForm.imagenUrl}
                 onChange={(event) => setAdminForm((current) => ({ ...current, imagenUrl: event.target.value }))}
                 placeholder="Imagen URL"
+                className="rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none placeholder:text-stone-400"
+              />
+              <input
+                value={adminForm.imagenSecundaria}
+                onChange={(event) => setAdminForm((current) => ({ ...current, imagenSecundaria: event.target.value }))}
+                placeholder="Imagen secundaria URL"
                 className="rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none placeholder:text-stone-400"
               />
               <textarea
@@ -1156,7 +1216,7 @@ function Home() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setAdminForm({ id: '', nombre: '', descripcion: '', precio: '', categoria: '', imagenUrl: '' })}
+                  onClick={() => setAdminForm({ id: '', nombre: '', descripcion: '', precio: '', categoria: '', imagenUrl: '', imagenSecundaria: '' })}
                   className="rounded-full border border-stone-300 px-4 py-3 text-xs font-bold uppercase tracking-[0.3em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
                 >
                   Limpiar
@@ -1166,7 +1226,23 @@ function Home() {
           </div>
         </section>
       </main>
-    </div>
+      </div>
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="¿Estás seguro?"
+        message={`Vas a eliminar ${deleteTarget?.nombre ?? 'este producto'}. Esta acción no se puede deshacer.`}
+        confirmLabel="Sí, eliminar"
+        cancelLabel="Cancelar"
+        loading={deleteLoading}
+        onCancel={() => {
+          if (!deleteLoading) {
+            setDeleteTarget(null);
+          }
+        }}
+        onConfirm={() => handleDeleteProduct(deleteTarget?.id)}
+      />
+    </>
   );
 }
 

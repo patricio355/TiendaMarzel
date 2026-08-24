@@ -42,8 +42,8 @@ export function getCloudinaryUrl(imageUrl, options = {}) {
  */
 export function getThumbnail(imageUrl) {
   return getCloudinaryUrl(imageUrl, {
-    width: 50,
-    height: 50,
+    width: 300,
+    height: 300,
     quality: 'auto',
   });
 }
@@ -69,8 +69,8 @@ export function getMediumImage(imageUrl) {
  */
 export function getLargeImage(imageUrl) {
   return getCloudinaryUrl(imageUrl, {
-    width: 600,
-    height: 600,
+    width: 1200,
+    height: 1200,
     crop: 'fit',
     quality: 'auto',
   });

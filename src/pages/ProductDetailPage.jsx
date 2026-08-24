@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { Navbar } from '../components/Navbar';
+import ProductHoverImage from '../components/ProductHoverImage';
 import { useCart } from '../context/CartContext';
 import { getProduct, listProducts } from '../lib/api';
 import { currency, normalizeProduct, toArray } from '../lib/shop';
@@ -188,13 +189,13 @@ function ProductDetailPage() {
 
       <main className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8">
         <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
-          <div className="overflow-hidden bg-white">
-            <img
-              src={getLargeImage(selectedImage || product.imagenUrl)}
-              alt={product.nombre}
-              className="h-full w-full object-contain"
-            />
-          </div>
+          <ProductHoverImage
+            primarySrc={getLargeImage(selectedImage || product.imagenUrl)}
+            secondarySrc={getLargeImage(product.imagenSecundaria || selectedImage || product.imagenUrl)}
+            alt={product.nombre}
+            className="group aspect-[3/4] bg-white"
+            imageClassName="object-contain"
+          />
 
           <div className="grid gap-4 lg:grid-cols-[106px_1fr]">
             <div className="order-2 flex gap-3 overflow-x-auto lg:order-1 lg:flex-col">
@@ -327,8 +328,13 @@ function ProductDetailPage() {
           <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {relatedProducts.map((item) => (
               <Link key={item.id} to={`/producto/${encodeURIComponent(item.id)}`} state={{ product: item }} className="group bg-white">
-                <div className="relative aspect-[3/4] overflow-hidden">
-                  <img src={item.imagenUrl} alt={item.nombre} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                <div className="relative">
+                  <ProductHoverImage
+                    primarySrc={item.imagenUrl}
+                    secondarySrc={item.imagenSecundaria}
+                    alt={item.nombre}
+                    className="aspect-[3/4] bg-stone-100"
+                  />
                   <span className="absolute right-3 top-3 text-[11px] uppercase tracking-[0.24em] text-stone-700">New In</span>
                 </div>
                 <div className="p-4">

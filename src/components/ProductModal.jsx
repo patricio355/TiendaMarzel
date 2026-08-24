@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { getLargeImage } from '../lib/cloudinary';
+import { parsePriceInput, formatCurrencyForInput } from '../lib/shop';
 
 const TALLE_OPTIONS = ['S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
 const COLOR_OPTIONS = ['NEGRO', 'BLANCO', 'GRIS', 'AZUL', 'VERDE', 'ROJO', 'BEIGE', 'CRUDO', 'MARRON', 'CELESTE', 'VIOLETA', 'ROSADO'];
@@ -11,26 +12,54 @@ const EMPTY_FORM = {
   precio: '',
   categoria: '',
   imagenUrl: '',
+  imagenSecundaria: '',
   variants: [],
 };
 
-function ProductModal({ isOpen, form, onClose, onSave, isLoading = false, previewImage = null }) {
+function ProductModal({ isOpen, form, onClose, onSave, isLoading = false, previewImage = null, previewSecondaryImage = null }) {
   const [localForm, setLocalForm] = useState(form);
   const [imagePreview, setImagePreview] = useState(previewImage);
+  const [secondaryImagePreview, setSecondaryImagePreview] = useState(previewSecondaryImage);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingSecondaryImage, setUploadingSecondaryImage] = useState(false);
   const [uploadError, setUploadError] = useState('');
+  const [secondaryUploadError, setSecondaryUploadError] = useState('');
   const fileInputRef = useRef(null);
+  const secondaryFileInputRef = useRef(null);
 
   useEffect(() => {
     setLocalForm(form);
     setImagePreview(previewImage);
-  }, [form, previewImage]);
+    setSecondaryImagePreview(previewSecondaryImage);
+  }, [form, previewImage, previewSecondaryImage]);
 
   useEffect(() => {
     // Ensure variants array exists
     setLocalForm((prev) => ({ ...(prev || {}), variants: (prev?.variants ?? form?.variants ?? []) }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function uploadImageToCloudinary(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', 'tienda_virtual');
+    formData.append('folder', 'tienda_virtual/productos');
+
+    const response = await fetch(
+      'https://api.cloudinary.com/v1_1/drjn5sbwz/image/upload',
+      {
+        method: 'POST',
+        body: formData,
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Error al subir la imagen');
+    }
+
+    const data = await response.json();
+    return data.secure_url;
+  }
 
   async function handleImageUpload(event) {
     const file = event.target.files?.[0];
@@ -52,25 +81,7 @@ function ProductModal({ isOpen, form, onClose, onSave, isLoading = false, previe
     setUploadingImage(true);
 
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('upload_preset', 'tienda_virtual');
-      formData.append('folder', 'tienda_virtual/productos');
-
-      const response = await fetch(
-        'https://api.cloudinary.com/v1_1/drjn5sbwz/image/upload',
-        {
-          method: 'POST',
-          body: formData,
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Error al subir la imagen');
-      }
-
-      const data = await response.json();
-      const imageUrl = data.secure_url;
+      const imageUrl = await uploadImageToCloudinary(file);
 
       setLocalForm((prev) => ({
         ...prev,
@@ -83,6 +94,41 @@ function ProductModal({ isOpen, form, onClose, onSave, isLoading = false, previe
       setUploadingImage(false);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
+      }
+    }
+  }
+
+  async function handleSecondaryImageUpload(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setSecondaryUploadError('Por favor selecciona un archivo de imagen válido');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setSecondaryUploadError('La imagen no debe superar 5MB');
+      return;
+    }
+
+    setSecondaryUploadError('');
+    setUploadingSecondaryImage(true);
+
+    try {
+      const imageUrl = await uploadImageToCloudinary(file);
+
+      setLocalForm((prev) => ({
+        ...prev,
+        imagenSecundaria: imageUrl,
+      }));
+      setSecondaryImagePreview(imageUrl);
+    } catch (error) {
+      setSecondaryUploadError(error.message || 'Error al subir la imagen');
+    } finally {
+      setUploadingSecondaryImage(false);
+      if (secondaryFileInputRef.current) {
+        secondaryFileInputRef.current.value = '';
       }
     }
   }
@@ -156,6 +202,50 @@ function ProductModal({ isOpen, form, onClose, onSave, isLoading = false, previe
             {uploadError && <p className="text-sm text-red-600">{uploadError}</p>}
           </div>
 
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-stone-700">Imagen secundaria</label>
+            {(secondaryImagePreview || localForm.imagenSecundaria) && (
+              <div className="mb-3 overflow-hidden rounded-2xl border border-stone-200 bg-stone-100 aspect-square">
+                <img
+                  src={getLargeImage(secondaryImagePreview || localForm.imagenSecundaria)}
+                  alt="Preview secundaria"
+                  className="h-full w-full object-contain"
+                />
+              </div>
+            )}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => secondaryFileInputRef.current?.click()}
+                disabled={uploadingSecondaryImage || isLoading}
+                className="flex-1 rounded-2xl border-2 border-dashed border-stone-300 px-4 py-3 text-sm text-stone-600 hover:border-stone-400 hover:bg-stone-50 disabled:opacity-50"
+              >
+                {uploadingSecondaryImage ? 'Subiendo...' : 'Seleccionar imagen secundaria'}
+              </button>
+              {localForm.imagenSecundaria && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLocalForm((prev) => ({ ...prev, imagenSecundaria: '' }));
+                    setSecondaryImagePreview(null);
+                  }}
+                  className="rounded-2xl border border-stone-300 px-4 py-3 text-sm text-red-600 hover:bg-red-50"
+                >
+                  Eliminar
+                </button>
+              )}
+            </div>
+            <input
+              ref={secondaryFileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleSecondaryImageUpload}
+              className="hidden"
+              disabled={uploadingSecondaryImage || isLoading}
+            />
+            {secondaryUploadError && <p className="text-sm text-red-600">{secondaryUploadError}</p>}
+          </div>
+
           {/* ID (solo lectura para edición) */}
           {localForm.id && (
             <div>
@@ -204,11 +294,14 @@ function ProductModal({ isOpen, form, onClose, onSave, isLoading = false, previe
               Precio
             </label>
             <input
-              value={localForm.precio}
-              onChange={(e) => setLocalForm((prev) => ({ ...prev, precio: e.target.value }))}
+              value={typeof localForm.precio === 'number' && !Number.isNaN(localForm.precio) ? formatCurrencyForInput(localForm.precio) : (localForm.precio ?? '')}
+              onChange={(e) => {
+                const raw = e.target.value;
+                const parsed = parsePriceInput(raw);
+                setLocalForm((prev) => ({ ...prev, precio: Number.isNaN(parsed) ? raw : parsed }));
+              }}
               placeholder="Precio"
-              type="number"
-              step="0.01"
+              type="text"
               required
               className="mt-1 w-full rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-stone-400"
             />
@@ -284,16 +377,19 @@ function ProductModal({ isOpen, form, onClose, onSave, isLoading = false, previe
                   />
 
                   <input
-                    value={variant.precio ?? ''}
-                    onChange={(e) => setLocalForm((prev) => {
-                      const next = { ...(prev || {}) };
-                      next.variants = Array.from(next.variants || []);
-                      next.variants[idx] = { ...(next.variants[idx] || {}), precio: e.target.value };
-                      return next;
-                    })}
+                    value={typeof variant.precio === 'number' && !Number.isNaN(variant.precio) ? formatCurrencyForInput(variant.precio) : (variant.precio ?? '')}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      const parsed = parsePriceInput(raw);
+                      setLocalForm((prev) => {
+                        const next = { ...(prev || {}) };
+                        next.variants = Array.from(next.variants || []);
+                        next.variants[idx] = { ...(next.variants[idx] || {}), precio: Number.isNaN(parsed) ? raw : parsed };
+                        return next;
+                      });
+                    }}
                     placeholder="Precio variante"
-                    type="number"
-                    step="0.01"
+                    type="text"
                     className="w-28 rounded-2xl border border-stone-300 px-3 py-2 outline-none"
                   />
 
@@ -336,7 +432,7 @@ function ProductModal({ isOpen, form, onClose, onSave, isLoading = false, previe
             </button>
             <button
               type="submit"
-              disabled={isLoading || uploadingImage || !localForm.nombre || !localForm.categoria || !localForm.precio || !localForm.imagenUrl}
+              disabled={isLoading || uploadingImage || uploadingSecondaryImage || !localForm.nombre || !localForm.categoria || !(typeof localForm.precio === 'number' && !Number.isNaN(localForm.precio)) || !localForm.imagenUrl || !localForm.imagenSecundaria}
               className="flex-1 rounded-2xl bg-stone-900 px-4 py-3 text-xs uppercase tracking-[0.25em] text-white hover:bg-stone-800 disabled:opacity-50"
             >
               {isLoading ? 'Guardando...' : 'Guardar'}

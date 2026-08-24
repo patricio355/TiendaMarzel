@@ -34,11 +34,32 @@ export const FALLBACK_PRODUCTS = [
 ];
 
 export function currency(value) {
-  return new Intl.NumberFormat('es-ES', {
+  return new Intl.NumberFormat('es-AR', {
     style: 'currency',
-    currency: 'USD',
+    currency: 'ARS',
     maximumFractionDigits: 2,
   }).format(Number(value ?? 0));
+}
+
+export function parsePriceInput(input) {
+  if (input === undefined || input === null) return NaN;
+  const s = String(input).trim();
+  if (s === '') return NaN;
+  // Remove currency symbols and spaces, remove thousand separators (dots), convert comma to dot
+  const cleaned = s.replace(/[^0-9,.-]/g, '').replace(/\./g, '').replace(/,/g, '.');
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : NaN;
+}
+
+export function formatCurrencyForInput(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return '';
+  const hasDecimals = Math.abs(n % 1) > 0;
+  return new Intl.NumberFormat('es-AR', {
+    style: 'currency',
+    currency: 'ARS',
+    maximumFractionDigits: hasDecimals ? 2 : 0,
+  }).format(n);
 }
 
 export function toArray(value) {
@@ -67,6 +88,7 @@ export function normalizeVariant(variant, index) {
     nombre: variant.nombre ?? variant.name ?? variant.talle ?? variant.color ?? `Variante ${index + 1}`,
     precio: Number(variant.precio ?? variant.price ?? 0),
     talle: variant.talle ?? null,
+    numero: variant.numero ?? null,
     color: variant.color ?? null,
     stock: variant.stock ?? 0,
   };
@@ -94,6 +116,7 @@ export function normalizeProduct(product) {
     precio: Number(productoData.precio ?? product.precio ?? product.price ?? 0),
     categoria: productoData.categoria ?? product.categoria ?? product.category ?? 'General',
     imagenUrl: productoData.imagenUrl ?? product.imagenUrl ?? product.imagen ?? product.image ?? images[0] ?? FALLBACK_PRODUCTS[0].imagenUrl,
+    imagenSecundaria: productoData.imagenSecundaria ?? product.imagenSecundaria ?? product.secondaryImage ?? product.image2 ?? null,
     images,
     variants,
     raw: product,

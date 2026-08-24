@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Navbar } from '../components/Navbar';
+import ProductHoverImage from '../components/ProductHoverImage';
 import { useCart } from '../context/CartContext';
 import { listProducts } from '../lib/api';
 import { currency, FALLBACK_PRODUCTS, normalizeProduct, toArray } from '../lib/shop';
@@ -114,9 +115,12 @@ function StorePage() {
             {filteredProducts.map((product) => (
               <article key={product.id} className="group overflow-hidden bg-white">
                 <Link to={`/producto/${encodeURIComponent(product.id)}`} state={{ product }} className="block">
-                  <div className="relative aspect-[2/3] overflow-hidden">
-                    <img src={product.imagenUrl} alt={product.nombre} className="h-full w-full object-cover transition duration-700 group-hover:scale-105" />
-                  </div>
+                        <ProductHoverImage
+                          primarySrc={product.imagenUrl}
+                          secondarySrc={product.imagenSecundaria}
+                          alt={product.nombre}
+                          className="aspect-[2/3] bg-stone-100"
+                        />
                 </Link>
                 <div className="space-y-2 py-4">
                   <Link to={`/producto/${encodeURIComponent(product.id)}`} state={{ product }} className="text-xl font-medium text-stone-900 hover:text-stone-700 lg:text-2xl">

@@ -29,6 +29,21 @@ function safeJsonParse(value) {
   }
 }
 
+function buildQuery(params = {}) {
+  const searchParams = new URLSearchParams();
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === '') {
+      return;
+    }
+
+    searchParams.set(key, String(value));
+  });
+
+  const queryString = searchParams.toString();
+  return queryString ? `?${queryString}` : '';
+}
+
 export function listProducts() {
   return request('/api/productos');
 }
@@ -51,6 +66,22 @@ export function updateProduct(productId, body, token) {
 
 export function deleteProduct(productId, token) {
   return request(`/api/productos/${encodeURIComponent(productId)}`, { method: 'DELETE', token });
+}
+
+export function listStock(token) {
+  return request('/api/stock', { token });
+}
+
+export function listStockSummary(token) {
+  return request('/api/stock/summary', { token });
+}
+
+export function createIngreso(body, token) {
+  return request('/api/ingresos', { method: 'POST', body, token });
+}
+
+export function listIngresos(params = {}, token) {
+  return request(`/api/ingresos${buildQuery(params)}`, { token });
 }
 
 export function register(body) {
